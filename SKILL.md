@@ -30,17 +30,17 @@ description: 专利申请文件批量生成器。当用户需要基于技术交�
         └── ...
 ```
 
-**注意**：生成过程中在案件目录下创建临时 `outputs_{时间戳}/` 目录，最终将所有文件复制到 `output/案件名_{时间戳}/` 并删除临时目录。
+
 
 ## 执行流程
 
 ### Step 1: 准备
 
 1. 在工作目录查找 `.docx` 文件
-2. 创建输出目录：`outputs_$(date +%Y%m%d_%H%M)/`
-3. 用 pandoc 提取技术交底书：
+2. 创建输出目录：`outputs/[案件名]_$(date +%Y%m%d_%H%M)/`
+3. 用 clean.py 提取技术交底书：
    ```bash
-   pandoc "技术交底书.docx" -o "outputs_xxx/00_技术交底书.md"
+   python clean.py "技术交底书.docx" -o "outputs/[案件名]_$(date +%Y%m%d_%H%M)/00_技术交底书.md"
    ```
 
 ### Step 2: 依次生成各部分
@@ -49,10 +49,10 @@ description: 专利申请文件批量生成器。当用户需要基于技术交�
 
 | 序号 | 输出文件 | Prompt 文件 | 上下文 |
 |------|---------|-------------|--------|
-| 1 | 01_背景技术.md | prompts/01_背景技术.md | 技术交底书 |
-| 2 | 02_权利要求书.md | prompts/02_权要布局.md | 技术交底书 + 背景技术 |
-| 3 | 03_有益效果.md | prompts/03_有益效果.md | 技术交底书 + 权利要求书 |
-| 4 | 04_具体实施方式.md | prompts/04_具体实施方式.md | 技术交底书 + 权利要求书 |
+| 1 | 01_背景技术.md | prompts/01_背景技术.md | 00_技术交底书.md |
+| 2 | 02_权利要求书.md | prompts/02_权要布局.md | 00_技术交底书.md + 01_背景技术.md |
+| 3 | 03_有益效果.md | prompts/03_有益效果.md | 00_技术交底书.md + 02_权利要求书.md |
+| 4 | 04_具体实施方式.md | prompts/04_具体实施方式.md | 00_技术交底书.md + 02_权利要求书.md |
 | 5 | 05_摘要.md | prompts/05_摘要.md | 所有已生成内容 |
 
 **生成步骤**：
@@ -66,26 +66,16 @@ description: 专利申请文件批量生成器。当用户需要基于技术交�
 ### Step 3: 合并输出
 
 ```bash
-python scripts/merge_draft.py outputs_xxx/
+python scripts/render.py outputs/[案件名]_$(date +%Y%m%d_%H%M)/
 ```
 
 生成 `专利申请草案.md`，按顺序合并各部分。
 
 ### Step 4: 输出到 output 目录并清理
 
-专利申请文件生成完成后，需要将结果复制到与 `input/` 同层级的 `output/` 目录：
+专利申请文件生成完成后，需要将结果输出到与 `input/` 同层级的 `output/` 目录中的新建案件名文件夹。
 
-```bash
-# 1. 创建最终输出目录
-timestamp=$(date +%Y%m%d_%H%M)
-mkdir -p "../../output/${案件名}_${timestamp}"
-
-# 2. 复制所有生成的文件
-cp -r outputs_${timestamp}/* "../../output/${案件名}_${timestamp}/"
-
-# 3. 删除临时输出目录
-rm -rf outputs_${timestamp}/
-```
+`input/`下已完成的案件目录需添加`_已完成`后缀。
 
 **最终目录结构示例**：
 ```
