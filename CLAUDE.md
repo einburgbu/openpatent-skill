@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenPatent is a Chinese patent application document generator that converts technical disclosure documents (技术交底书) from Microsoft Word (.docx) format into complete patent application files in Markdown format. It is designed for patent agents and attorneys working with Chinese patent applications.
+OpenPatent is a Chinese patent application document generator that converts technical disclosure documents (技术交底书) from Microsoft Word (.docx) format into complete patent application files in Markdown format. It uses GLM API to generate high-quality patent content. Designed for patent agents and attorneys working with Chinese patent applications.
 
 **Language**: Primary content is in Chinese (Simplified). Code comments and documentation are mixed Chinese/English.
 
@@ -16,6 +16,7 @@ OpenPatent is a Chinese patent application document generator that converts tech
 openpatent/
 ├── scripts/
 │   ├── clean.py      # DOCX → Markdown converter
+│   ├── generate.py   # Generate patent sections via GLM API
 │   └── render.py     # Merge patent sections into final document
 ├── references/       # Prompt templates and workflow guides
 │   ├── 01_背景技术.md
@@ -23,12 +24,14 @@ openpatent/
 │   ├── 03_有益效果.md
 │   ├── 04_具体实施方式.md
 │   ├── 05_摘要.md
+│   ├── API-GENERATION.md
 │   ├── WORKFLOWS.md
 │   ├── SECTION-ORDER.md
 │   ├── OUTPUT-STRUCTURE.md
 │   └── BATCH-PROCESSING.md
 ├── SKILL.md          # Main skill definition (YAML frontmatter + concise guide)
-└── CLAUDE.md         # This file - development guide
+├── CLAUDE.md         # This file - development guide
+└── .env.example      # API key configuration template
 ```
 
 **Note**: The `prompts/` directory was renamed to `references/` to follow skill-creator best practices. Prompt templates are reference material that gets loaded as needed.
@@ -38,16 +41,34 @@ openpatent/
 ```bash
 pip install mammoth      # DOCX to HTML conversion
 pip install markdownify  # HTML to Markdown conversion
+pip install anthropic    # GLM API client (uses Anthropic-compatible API)
 ```
 
 **Note**: There is no requirements.txt, pyproject.toml, or package.json. Dependencies are documented in script docstrings.
+
+## Configuration
+
+### GLM API Key
+
+Required for patent section generation. Configure via:
+
+```bash
+# Option 1: Environment variable
+export GLM_API_KEY="your-api-key-here"
+
+# Option 2: .env file in project root
+cp .env.example .env
+# Edit .env and add: GLM_API_KEY=your-key
+```
+
+Get API key from: https://open.bigmodel.cn/
 
 ## Core Workflow
 
 The patent generation process follows a sequential pipeline:
 
 1. **Extract**: Use `clean.py` to convert .docx to Markdown
-2. **Generate**: Sequentially generate 5 patent sections using AI prompts
+2. **Generate**: Use `generate.py` with GLM API to sequentially generate 5 patent sections
 3. **Merge**: Use `render.py` to combine sections into final document
 
 ### Section Generation Order (Critical)
@@ -90,6 +111,41 @@ python scripts/clean.py "技术交底书.docx"
 - Removes excessive blank lines (preserves single blank lines)
 - Strips anchor tags (`<a>`) during conversion
 
+### generate.py - Generate Patent Sections
+
+```bash
+# Single context file
+python scripts/generate.py \
+    --prompt references/01_背景技术.md \
+    --context outputs/case/00_技术交底书.md \
+    --output outputs/case/01_背景技术.md
+
+# Multiple context files
+python scripts/generate.py \
+    --prompt references/02_权要布局.md \
+    --context outputs/case/00_技术交底书.md \
+    --context outputs/case/01_背景技术.md \
+    --output outputs/case/02_权利要求书.md
+
+# Specify model (default: glm-4.7)
+python scripts/generate.py --model glm-4.7 --prompt ...
+
+# Dry run (preview without calling API)
+python scripts/generate.py --dry-run --prompt ...
+```
+
+**What it does**:
+- Calls GLM API with prompt template and context files
+- Generates patent section content using glm-4.7 model
+- Automatically splits claims explanation (if `---` separator present)
+- Saves output to specified file
+
+**GLM API Configuration**:
+- Endpoint: `https://open.bigmodel.cn/api/anthropic`
+- Default model: `glm-4.7`
+- Max tokens: 8192
+- Temperature: 0.7 (configurable)
+
 ### render.py - Merge Patent Sections
 
 ```bash
@@ -110,7 +166,7 @@ python scripts/render.py outputs/[case_name]_$(date +%Y%m%d_%H%M)/ -o custom/pat
 
 ### Claims Section (02_权利要求书.md)
 
-The claims prompt output may contain a `---` separator. Content after the separator should be extracted to `02_权利要求书_解释.md` (explanation file).
+The claims prompt output may contain a `---` separator. `generate.py` automatically extracts content after the separator to `02_权利要求书_解释.md` (explanation file).
 
 ### Claims Requirements (from references/02_权要布局.md)
 
@@ -134,7 +190,7 @@ The claims prompt output may contain a `---` separator. Content after the separa
 
 Output directories should be named: `[案件名]_YYYYMMDD_HHMM/`
 
-Example: `DI26-0059-P_20250124_1030/`
+Example: `DI26-0059-P_20250129_1030/`
 
 ## Development Notes
 
@@ -142,15 +198,29 @@ Example: `DI26-0059-P_20250124_1030/`
 - **No CI/CD** configuration
 - Scripts are self-contained with comprehensive docstrings
 - Error messages are in Chinese for user-facing output
+- **GLM API required** - Patent section generation requires valid API key
 
 ## Key Architectural Insight
 
 The design separates concerns cleanly:
 1. **clean.py** handles proprietary format conversion (DOCX → MD)
-2. **references/** contain domain knowledge for patent writing (prompts and workflows)
-3. **render.py** orchestrates final assembly with proper ordering
+2. **generate.py** handles AI content generation via GLM API
+3. **references/** contain domain knowledge for patent writing (prompts and workflows)
+4. **render.py** orchestrates final assembly with proper ordering
 
 This allows prompts to be versioned alongside code and enables sequential AI generation where each step builds on previous outputs.
+
+## Why GLM API?
+
+Using `generate.py` with GLM API instead of inline AI generation provides:
+
+| Advantage | Explanation |
+|-----------|-------------|
+| Consistent quality | Avoids text compression from code tools |
+| Parameter control | Full control over temperature, max_tokens |
+| Cost optimization | Can choose different models per section |
+| Reproducibility | API calls produce consistent results |
+| Flexibility | Easy to switch between providers |
 
 ## Skill Structure Best Practices
 
