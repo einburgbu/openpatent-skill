@@ -10,8 +10,8 @@ Convert technical disclosure documents (.docx) into complete patent application 
 ## Quick Start
 
 ```bash
-# Step 1: Extract disclosure
-python scripts/clean.py "技术交底书.docx" -o "outputs/[case_name]/00_技术交底书.md"
+# Step 1: Extract disclosure (output dir MUST include timestamp: YYYYMMDD_HHMM)
+python scripts/clean.py "技术交底书.docx" -o "outputs/[case_name]_$(date +%Y%m%d_%H%M)/00_技术交底书.md"
 
 # Step 2: Generate sections sequentially (see references below)
 # - 01_背景技术.md
@@ -21,7 +21,10 @@ python scripts/clean.py "技术交底书.docx" -o "outputs/[case_name]/00_技术
 # - 05_摘要.md
 
 # Step 3: Merge into final document
-python scripts/render.py outputs/[case_name]/
+python scripts/render.py outputs/[case_name]_$(date +%Y%m%d_%H%M)/
+
+# Step 4: Mark input case as completed (add "_已完成" suffix)
+mv input/[case_name] input/[case_name]_已完成
 ```
 
 ## Dependencies

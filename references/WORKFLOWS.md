@@ -58,7 +58,12 @@ After patent application file generation is complete:
 ✓ 摘要已生成（198字）
 ✓ 专利申请草案已合并
 ✓ 输出已保存到: output/DI26-0059-P_20250124_1030/
+✓ input 案件已标记: input/DI26-0059-P → input/DI26-0059-P_已完成
 ```
+
+**检查清单（完成前必须确认）：**
+- [ ] output 目录命名包含时间戳：`[case_name]_YYYYMMDD_HHMM`
+- [ ] input 已完成案件已标记 `_已完成` 后缀
 
 ## Important Notes
 
