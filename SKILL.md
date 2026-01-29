@@ -1,120 +1,66 @@
 ---
 name: patent-generator
-description: 专利申请文件批量生成器。当用户需要基于技术交底书（.docx文件）自动生成完整专利申请文件时使用。支持：(1)处理单个案件目录，(2)批量处理多个案件子目录。生成内容包括背景技术、权利要求书、有益效果、具体实施方式、摘要等完整专利申请文本。触发词："专利生成器"、"处理技术交底书"、"批量生成专利"。
+description: 'Chinese patent application document generator that converts technical disclosure documents (.docx) into complete patent application files in Markdown. Supports single case processing and batch processing. Generates background, claims, beneficial effects, embodiments, and abstract sections. Trigger phrases: "专利生成器", "处理技术交底书", "批量生成专利". Use when user needs to generate patent documents from technical disclosures.'
 ---
 
-# 专利申请文件生成器
+# Patent Application Generator
 
-将技术交底书（.docx）转换为完整专利申请文件。
+Convert technical disclosure documents (.docx) into complete patent application files in Chinese.
 
-## 输出结构
-
-```
-工作目录/
-├── input/                         ← 输入案件目录
-│   ├── DI26-0059-P/
-│   │   └── 技术交底书.docx
-│   └── DI26-0060-P/
-│       └── 技术交底书.docx
-└── output/                        ← 输出目录
-    ├── DI26-0059-P_20250124_1030/  ← 案件名_时间戳
-    │   ├── 00_技术交底书.md
-    │   ├── 01_背景技术.md
-    │   ├── 02_权利要求书.md
-    │   ├── 02_权利要求书_解释.md
-    │   ├── 03_有益效果.md
-    │   ├── 04_具体实施方式.md
-    │   ├── 05_摘要.md
-    │   └── 专利申请草案.md
-    └── DI26-0060-P_20250124_1031/
-        └── ...
-```
-
-
-
-## 执行流程
-
-### Step 1: 准备
-
-1. 在工作目录查找 `.docx` 文件
-2. 创建输出目录：`outputs/[案件名]_$(date +%Y%m%d_%H%M)/`
-3. 用 clean.py 提取技术交底书：
-   ```bash
-   python scripts/clean.py "技术交底书.docx" -o "outputs/[案件名]_$(date +%Y%m%d_%H%M)/00_技术交底书.md"
-   ```
-
-### Step 2: 依次生成各部分
-
-按顺序生成，每部分需读取对应的 prompt 文件：
-
-| 序号 | 输出文件 | Prompt 文件 | 上下文 |
-|------|---------|-------------|--------|
-| 1 | 01_背景技术.md | prompts/01_背景技术.md | 00_技术交底书.md |
-| 2 | 02_权利要求书.md | prompts/02_权要布局.md | 00_技术交底书.md + 01_背景技术.md |
-| 3 | 03_有益效果.md | prompts/03_有益效果.md | 00_技术交底书.md + 02_权利要求书.md |
-| 4 | 04_具体实施方式.md | prompts/04_具体实施方式.md | 00_技术交底书.md + 02_权利要求书.md |
-| 5 | 05_摘要.md | prompts/05_摘要.md | 所有已生成内容 |
-
-**生成步骤**：
-1. 读取对应的 prompt 文件（如 `prompts/01_背景技术.md`）
-2. 读取所需的上下文文件
-3. 按 prompt 要求生成内容
-4. 保存到输出文件
-
-**权利要求书特殊处理**：输出包含 `---` 分隔的解释部分时，分离到 `02_权利要求书_解释.md`
-
-### Step 3: 合并输出
+## Quick Start
 
 ```bash
-python scripts/render.py outputs/[案件名]_$(date +%Y%m%d_%H%M)/
+# Step 1: Extract disclosure
+python scripts/clean.py "技术交底书.docx" -o "outputs/[case_name]/00_技术交底书.md"
+
+# Step 2: Generate sections sequentially (see references below)
+# - 01_背景技术.md
+# - 02_权利要求书.md
+# - 03_有益效果.md
+# - 04_具体实施方式.md
+# - 05_摘要.md
+
+# Step 3: Merge into final document
+python scripts/render.py outputs/[case_name]/
 ```
 
-生成 `专利申请草案.md`，按顺序合并各部分。
-
-### Step 4: 输出到 output 目录并清理
-
-专利申请文件生成完成后，需要将结果输出到与 `input/` 同层级的 `output/` 目录中的新建案件名文件夹。
-
-`input/`下已完成的案件目录需添加`_已完成`后缀。
-
-**最终目录结构示例**：
-```
-output/
-└── DI26-0059-P_20250124_1030/
-    ├── 00_技术交底书.md
-    ├── 01_背景技术.md
-    ├── 02_权利要求书.md
-    ├── 02_权利要求书_解释.md
-    ├── 03_有益效果.md
-    ├── 04_具体实施方式.md
-    ├── 05_摘要.md
-    └── 专利申请草案.md
-```
-
-**重要**：输出到 `output/` 目录是必须执行的步骤，用于区分已处理完成的案件。
-
-## 批量处理
-
-遍历所有子目录，对包含 `.docx` 的目录执行上述流程：
+## Dependencies
 
 ```bash
-for dir in */; do
-    if ls "$dir"/*.docx 1>/dev/null 2>&1; then
-        # 处理该目录
-    fi
-done
+pip install mammoth markdownify
 ```
 
-## 进度反馈
+## Reference Materials
 
-```
-[案件: DI26-0059-P]
-✓ 技术交底书已提取
-✓ 背景技术已生成
-✓ 权利要求书已生成（10条）
-✓ 有益效果已生成
-✓ 具体实施方式已生成
-✓ 摘要已生成（198字）
-✓ 专利申请草案已合并
-✓ 输出已保存到: output/DI26-0059-P_20250124_1030/
-```
+Detailed guides for each aspect of the workflow:
+
+| Topic | Reference |
+|-------|-----------|
+| Complete execution workflow | [references/WORKFLOWS.md](references/WORKFLOWS.md) |
+| Section order and merging | [references/SECTION-ORDER.md](references/SECTION-ORDER.md) |
+| Output directory structure | [references/OUTPUT-STRUCTURE.md](references/OUTPUT-STRUCTURE.md) |
+| Batch processing guide | [references/BATCH-PROCESSING.md](references/BATCH-PROCESSING.md) |
+
+## Scripts
+
+- **`clean.py`** - Convert DOCX to Markdown (extracts technical disclosure)
+- **`render.py`** - Merge sections into final patent application document
+
+## Section Generation
+
+Generate sections in order using prompt files from `references/`:
+
+1. Background → [references/01_背景技术.md](references/01_背景技术.md)
+2. Claims → [references/02_权要布局.md](references/02_权要布局.md)
+3. Benefits → [references/03_有益效果.md](references/03_有益效果.md)
+4. Embodiments → [references/04_具体实施方式.md](references/04_具体实施方式.md)
+5. Abstract → [references/05_摘要.md](references/05_摘要.md)
+
+**Important**: Each section depends on previously generated content. Follow the order above.
+
+## Special Handling
+
+- **Claims section**: May contain `---` separator. Content after separator goes to `02_权利要求书_解释.md`
+- **Claims requirement**: At least 8 claims required
+- **Abstract word count**: 180-220 characters (200 ± 20)
+- **Embodiments**: No fabricated data or examples
