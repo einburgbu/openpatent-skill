@@ -7,6 +7,36 @@ description: 'Chinese patent application document generator that converts techni
 
 Convert technical disclosure documents (.docx) into complete patent application files in Chinese.
 
+## Directory Structure
+
+```
+项目根目录/
+├── input/                    # 输入：待处理的技术交底书 (.docx)
+│   ├── 0060/
+│   │   └── 技术交底书-xxx.docx
+│   └── 0060_已完成/          # 处理完成后添加 "_已完成" 后缀
+│       └── 专利申请草案.md   # 最终生成的专利文件
+├── output/                   # 输出：生成的专利章节和最终文档
+│   └── 0060_20260129_0000/
+│       ├── 00_技术交底书.md
+│       ├── 01_背景技术.md
+│       ├── 02_权利要求书.md
+│       ├── 03_有益效果.md
+│       ├── 04_具体实施方式.md
+│       ├── 05_摘要.md
+│       └── 专利申请草案.md   # 合并后的完整文档
+└── .claude/
+    └── skills/
+        └── openpatent-skill/ # 本技能目录
+            ├── scripts/       # 执行脚本
+            └── references/    # 提示词模板和参考文档
+```
+
+**重要说明**：
+- `input/` 和 `output/` 位于**项目根目录**，与 `.claude/` 同级
+- `scripts/` 和 `references/` 位于 `.claude/skills/openpatent-skill/` 下
+- 始终从**项目根目录**执行命令
+
 ## Quick Start
 
 ```bash
@@ -17,25 +47,32 @@ pip install mammoth markdownify anthropic
 export GLM_API_KEY="your-api-key-here"
 # Or create .env file with: GLM_API_KEY=your-key
 
-# Step 2: Extract disclosure (output dir MUST include timestamp: YYYYMMDD_HHMM)
-python scripts/clean.py "技术交底书.docx" -o "outputs/[case_name]_$(date +%Y%m%d_%H%M)/00_技术交底书.md"
+# Step 2: Set paths (从项目根目录执行)
+CASE_NAME="0060"
+TIMESTAMP=$(date +%Y%m%d_%H%M)
+INPUT_FILE="input/${CASE_NAME}/技术交底书-xxx.docx"
+OUTPUT_DIR="output/${CASE_NAME}_${TIMESTAMP}"
 
-# Step 3: Generate sections sequentially using GLM API
-python scripts/generate.py -p references/01_背景技术.md -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/00_技术交底书.md" -o "outputs/[case_name]_$(date +%Y%m%d_%H%M)/01_背景技术.md"
+# Step 3: Extract disclosure
+.claude/skills/openpatent-skill/scripts/clean.py "$INPUT_FILE" -o "${OUTPUT_DIR}/00_技术交底书.md"
 
-python scripts/generate.py -p references/02_权要布局.md -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/00_技术交底书.md" -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/01_背景技术.md" -o "outputs/[case_name]_$(date +%Y%m%d_%H%M)/02_权利要求书.md"
+# Step 4: Generate sections sequentially using GLM API
+.claude/skills/openpatent-skill/scripts/generate.py -p .claude/skills/openpatent-skill/references/01_背景技术.md -c "${OUTPUT_DIR}/00_技术交底书.md" -o "${OUTPUT_DIR}/01_背景技术.md"
 
-python scripts/generate.py -p references/03_有益效果.md -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/00_技术交底书.md" -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/02_权利要求书.md" -o "outputs/[case_name]_$(date +%Y%m%d_%H%M)/03_有益效果.md"
+.claude/skills/openpatent-skill/scripts/generate.py -p .claude/skills/openpatent-skill/references/02_权要布局.md -c "${OUTPUT_DIR}/00_技术交底书.md" -c "${OUTPUT_DIR}/01_背景技术.md" -o "${OUTPUT_DIR}/02_权利要求书.md"
 
-python scripts/generate.py -p references/04_具体实施方式.md -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/00_技术交底书.md" -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/02_权利要求书.md" -o "outputs/[case_name]_$(date +%Y%m%d_%H%M)/04_具体实施方式.md"
+.claude/skills/openpatent-skill/scripts/generate.py -p .claude/skills/openpatent-skill/references/03_有益效果.md -c "${OUTPUT_DIR}/00_技术交底书.md" -c "${OUTPUT_DIR}/02_权利要求书.md" -o "${OUTPUT_DIR}/03_有益效果.md"
 
-python scripts/generate.py -p references/05_摘要.md -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/00_技术交底书.md" -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/01_背景技术.md" -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/02_权利要求书.md" -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/03_有益效果.md" -c "outputs/[case_name]_$(date +%Y%m%d_%H%M)/04_具体实施方式.md" -o "outputs/[case_name]_$(date +%Y%m%d_%H%M)/05_摘要.md"
+.claude/skills/openpatent-skill/scripts/generate.py -p .claude/skills/openpatent-skill/references/04_具体实施方式.md -c "${OUTPUT_DIR}/00_技术交底书.md" -c "${OUTPUT_DIR}/02_权利要求书.md" -o "${OUTPUT_DIR}/04_具体实施方式.md"
 
-# Step 4: Merge into final document
-python scripts/render.py outputs/[case_name]_$(date +%Y%m%d_%H%M)/
+.claude/skills/openpatent-skill/scripts/generate.py -p .claude/skills/openpatent-skill/references/05_摘要.md -c "${OUTPUT_DIR}/00_技术交底书.md" -c "${OUTPUT_DIR}/01_背景技术.md" -c "${OUTPUT_DIR}/02_权利要求书.md" -c "${OUTPUT_DIR}/03_有益效果.md" -c "${OUTPUT_DIR}/04_具体实施方式.md" -o "${OUTPUT_DIR}/05_摘要.md"
 
-# Step 5: Mark input case as completed (add "_已完成" suffix)
-mv input/[case_name] input/[case_name]_已完成
+# Step 5: Merge into final document
+.claude/skills/openpatent-skill/scripts/render.py "${OUTPUT_DIR}/" -o "${OUTPUT_DIR}/专利申请草案.md"
+
+# Step 6: Copy to input folder and mark as completed
+cp "${OUTPUT_DIR}/专利申请草案.md" "input/${CASE_NAME}/"
+mv "input/${CASE_NAME}" "input/${CASE_NAME}_已完成"
 ```
 
 ## Dependencies
